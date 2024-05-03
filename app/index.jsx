@@ -29,7 +29,7 @@ export default function App () {
   const [location, setLocation] = useState(false);
   const [direction, setDirection] = useState(0);
   const [locationPerms, setLocationPerms] = useState(false);
-  const [currentLanguage, setLanguage] = useState('kz');
+  const [currentLanguage, setLanguage] = useState('en');
 
   const getPermissions = async () => {
     let { status } = await Location.requestForegroundPermissionsAsync();
