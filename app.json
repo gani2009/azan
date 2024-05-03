@@ -1,7 +1,8 @@
 {
   "expo": {
-    "name": "azan",
+    "name": "Azan",
     "slug": "azan",
+    "scheme": "azan",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -21,10 +22,22 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "Azan.kz"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "eb2c2479-8285-48a1-8f12-73aa7c88f721"
+      }
     }
   }
 }
