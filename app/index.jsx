@@ -1,11 +1,30 @@
 import { StatusBar } from 'expo-status-bar';
 import { icons, images } from '../constants';
 import { Coordinates, CalculationMethod, PrayerTimes, Qibla } from 'adhan';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import * as Location from 'expo-location';
-import { ActivityIndicator, Linking, Button, TouchableOpacity, Image, View, Text, Animated, Easing } from 'react-native';
+import { ActivityIndicator, Linking, Button, TouchableOpacity, Image, View, Text, Animated, Easing, Alert } from 'react-native';
 import { DeviceMotion } from 'expo-sensors';
+import * as Notifications from 'expo-notifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
+const storeData = async (key, value) => {
+  try {
+    await AsyncStorage.setItem(key, value);
+  } catch (e) {
+    console.error(e);
+  }
+};
+
+// Retrieve data
+const getData = async (key) => {
+  try {
+    const value = await AsyncStorage.getItem(key);
+    return value;
+  } catch (e) {
+    console.error(e);
+  };
+};
 
 const NamazRow = ({icon, name, time, current}) => {
     const hours = time.getHours().toString().padStart(2, '0');
@@ -23,13 +42,71 @@ const NamazRow = ({icon, name, time, current}) => {
     );
 };
 
+const requestNotificationPermission = async () => {
+  const { status } = await Notifications.requestPermissionsAsync();
+  return status;
+};
+
+const getSecondsUntilXminutesBefore = (targetDate, xMinutes) => {
+  const now = new Date();
+  const tenMinutesBefore = new Date(targetDate.getTime() - (xMinutes * 60 * 1000)); // Subtract 10 minutes in milliseconds
+  const differenceInMilliseconds = tenMinutesBefore - now;
+  const differenceInSeconds = Math.floor(differenceInMilliseconds / 1000);
+  return differenceInSeconds;
+};
+
+const scheduleNotification = async (seconds, title, body) => {
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: title,
+      body: body,
+    },
+    trigger: {
+      seconds: seconds
+    },
+  });
+};
+
 const goToSettings = () => Linking.openSettings();
 
 export default function App () {
   const [location, setLocation] = useState(false);
   const [direction, setDirection] = useState(0);
+  const [reminder, setReminders] = useState(false);
+  const [reminderIcon, setReminderIcon] = useState(reminder == false ? icons.remindersOff : icons.remindersOn);
   const [locationPerms, setLocationPerms] = useState(false);
-  const [currentLanguage, setLanguage] = useState('en');
+  const [notiPerms, setNotiPerms] = useState(null);
+  const [currentLanguage, setLanguage] = useState("en");
+  const [initializing, setInitializing] = useState(true);
+  useEffect(() => {
+    const fetchData = async () => {
+      if (await getData("language") == null) await storeData("language", "en");
+      const languageS = await getData('language');
+      const reminderS = await getData("reminder");
+      setReminders(reminderS != "on" ? true : false);
+      setReminderIcon(reminder != false ? icons.remindersOff : icons.remindersOn);
+      setInitializing(false);
+    };
+
+    if (initializing) fetchData();
+  }, []);
+
+  useEffect(() => {
+    const getPermission = async () => {
+      const status = await requestNotificationPermission();
+      if (status === 'denied' && notiPerms != 'denied') {
+        Alert.alert(
+          'Notification Permission',
+          'You will not receive prayer time reminders if you refuse notifications permission. You can later give Azan notification permissions and receive reminders.',
+          [{ text: 'OK' }]
+        );
+        setNotiPerms('denied');
+      } else if (status === 'granted') {
+        setNotiPerms('allowed');
+      }
+    };
+    getPermission();
+  }, []);
 
   const getPermissions = async () => {
     let { status } = await Location.requestForegroundPermissionsAsync();
@@ -90,12 +167,41 @@ export default function App () {
   }).start();
   var currentPrayer = prayerTimes.currentPrayer();
   let languages = {
-    kz: ['Намаз уақыттары', 'Таң', 'Бесін', 'Екінті', 'Ақшам', 'Құптан', 'Қыбла', 'Намаз', 'Уақыты', 'Азан'],
-    en: ['Namaz Timing', 'Fajr', 'Zuhr', 'Asr', 'Maghrib', 'Isha', 'Qibla', 'Namaz', 'Time', 'Alarm/Azan'],
-    ru: ['Врема намаза', 'Фаджр', 'Зухр', 'Аср', 'Магриб', 'Иша', 'Кибла', 'Намаз', 'Врема', 'Будильник']
+    қаз: ['Намаз уақыттары', 'Таң', 'Бесін', 'Екінті', 'Ақшам', 'Құптан', 'Қыбла', 'Намаз', 'Уақыты', 'Азан', 'Намаз ескертулер қойылды'],
+    en: ['Namaz Timing', 'Fajr', 'Zuhr', 'Asr', 'Maghrib', 'Isha', 'Qibla', 'Namaz', 'Time', 'Alarm/Azan', 'Salah reminders set!'],
+    рус: ['Врема намаза', 'Фаджр', 'Зухр', 'Аср', 'Магриб', 'Иша', 'Кибла', 'Намаз', 'Врема', 'Будильник', 'Намаз напоминания установлены!']
   };
-  let languageChoices = ['kz', 'ru', 'en'];
-  const ChangeLangOnPress = () => setLanguage(languageChoices[Number(languageChoices.indexOf(currentLanguage) + 1) % languageChoices.length]);
+  let languageChoices = ['қаз', 'рус', 'en'];
+  const ChangeLangOnPress = () => {
+    setLanguage(languageChoices[Number(languageChoices.indexOf(currentLanguage) + 1) % languageChoices.length]);
+    storeData("language", languageChoices[Number(languageChoices.indexOf(currentLanguage) + 1) % languageChoices.length]);
+  };
+
+  const toggleReminder = async () => {
+    setReminders(!reminder);
+    if (notiPerms == "denied") setReminders("noPerms");
+    if (reminder == false) {
+      await storeData("reminder", "off");
+      setReminderIcon(icons.remindersOff);
+      await Notifications.cancelAllScheduledNotificationsAsync();
+    } else if (reminder == true){
+      await storeData("reminder", "on");
+      setReminderIcon(icons.remindersOn);
+      Alert.alert(
+        languages[currentLanguage][10],
+        languages[currentLanguage][10],
+        [{ text: 'OK' }]
+      );
+      if (new Date(prayerTimes.fajr.getTime() - (10 * 60 * 1000)) > new Date()) scheduleNotification(getSecondsUntilXminutesBefore(prayerTimes.fajr, 10), "Fajr Reminder", "Pray fajr salah");
+      if (new Date(prayerTimes.dhuhr.getTime() - (10 * 60 * 1000)) > new Date()) scheduleNotification(getSecondsUntilXminutesBefore(prayerTimes.dhuhr, 10), "Dhuhr Reminder", "Pray dhuhr salah");
+      if (new Date(prayerTimes.asr.getTime() - (10 * 60 * 1000)) > new Date()) scheduleNotification(getSecondsUntilXminutesBefore(prayerTimes.asr, 10), "Asr Reminder", "Pray asr salah");
+      if (new Date(prayerTimes.maghrib.getTime() - (10 * 60 * 1000)) > new Date()) scheduleNotification(getSecondsUntilXminutesBefore(prayerTimes.maghrib, 10), "Maghrib Reminder", "Pray maghrib salah");
+      if (new Date(prayerTimes.isha.getTime() - (10 * 60 * 1000)) > new Date() )scheduleNotification(getSecondsUntilXminutesBefore(prayerTimes.isha, 10), "Isha Reminder", "Pray isha salah");
+    } else {
+      setReminderIcon(icons.remindersOff);
+      await storeData("reminder", "off");
+    };
+  };
 
   return (
     <View className="bg-white min-h-full">
@@ -124,7 +230,7 @@ export default function App () {
 
         <Animated.Image className="absolute" source={images.qiblaNeedle} style={{width: 350, height: 350, top: '91%', tintColor: '#FEA81B', transform: [
           {
-            rotate: 
+            rotate:
               qiblaNeedleRotation.interpolate({
                 inputRange: [-180, 180],
                 outputRange: ['-180deg', '180deg'],
@@ -144,8 +250,12 @@ export default function App () {
         }} />
         <Image className="absolute" source={icons.kaaba} style={{width: 60, height: 60, top: '91%', marginTop: 145}} />
       </View>
+      <Text className="mx-6 absolute" style={{top: '90%'}}>{currentLanguage}</Text>
       <TouchableOpacity onPress={ChangeLangOnPress} className="mx-6 absolute" style={{top: '90%'}}>
         <Image source={icons.world} style={{height: 60, width: 60, tintColor: '#FEA81B'}} />
+      </TouchableOpacity>
+      <TouchableOpacity onPress={toggleReminder} className="mx-6 absolute" style={{top: '5%', left: '80%'}}>
+        <Image source={reminderIcon} style={{height: 20, width: 20}} />
       </TouchableOpacity>
     </View>
   );

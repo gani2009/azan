@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Azan",
+    "name": "com.edgarni.azan",
     "slug": "azan",
     "scheme": "azan",
     "version": "1.0.0",
@@ -23,7 +23,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "Azan.kz"
+      "package": "com.edgarni.azan",
+      "versionCode": 14
     },
     "web": {
       "favicon": "./assets/favicon.png"
