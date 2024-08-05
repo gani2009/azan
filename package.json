@@ -1,6 +1,6 @@
 {
-  "name": "azan2",
-  "version": "1.0.0",
+  "name": "azan",
+  "version": "2.1.0",
   "main": "expo/AppEntry.js",
   "scripts": {
     "start": "expo start",
