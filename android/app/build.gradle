@@ -88,7 +88,7 @@ android {
         applicationId 'com.edgarni.azan'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2
+        versionCode 9
         versionName "2.1.0"
     }
     signingConfigs {
