@@ -1,3 +1,6 @@
+# THIS REPOSITORY IS ARCHIEVED, THE SOURCE CODE WAS ABONDONED
+## I chose to switch to Tauri.app for my endovours... click here: [Azan2](https://github.com/gani2009/azan2)
+
 # Azan App
 
 A React Native app for calculating Namaz timings and Qibla direction using Expo and React Native.
